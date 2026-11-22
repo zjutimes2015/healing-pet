@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>治愈萌宠 · 核心循环 Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#F5F0E8;color:#3E362E;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:16px}
+.phone{width:100%;max-width:390px;background:#FFFDF9;border-radius:32px;box-shadow:0 12px 40px rgba(90,70,40,.12);overflow:hidden;position:relative}
+.header{background:#FFF8EC;padding:20px 24px 16px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:20px;font-weight:500;color:#5A4A38}
+.steps-badge{background:#FFF0D8;border-radius:20px;padding:6px 14px;font-size:13px;color:#B8863F}
+.scene{background:linear-gradient(180deg,#E8F4E1 0%,#F5F0E8 100%);height:340px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:24px;overflow:hidden}
+.cloud{position:absolute;background:#FFF;border-radius:50px;opacity:.7}
+.cloud::before,.cloud::after{content:'';position:absolute;background:#FFF;border-radius:50%}
+.sun{position:absolute;top:24px;right:36px;width:44px;height:44px;background:#FFE08A;border-radius:50%;box-shadow:0 0 0 8px rgba(255,224,138,.25)}
+.ground{position:absolute;bottom:0;width:100%;height:60px;background:#DCE8C8;border-radius:50% 50% 0 0}
+.dog{position:relative;width:140px;height:140px;z-index:2;transition:transform .3s;cursor:pointer}
+.dog.happy{animation:bounce .5s ease}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+.evolve-flash{position:absolute;inset:0;background:#FFF;opacity:0;pointer-events:none;z-index:10}
+.evolve-flash.on{animation:flash .8s ease}
+@keyframes flash{0%{opacity:0}30%{opacity:.9}100%{opacity:0}}
+.name-tag{position:relative;z-index:3;background:#FFF;border-radius:16px;padding:6px 16px;font-size:14px;color:#7A6A55;margin-top:8px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.status{bottom:12px;position:relative;z-index:3;font-size:13px;color:#8A7A65;margin-top:6px}
+.panel{padding:20px 24px}
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.bar-label{font-size:13px;color:#8A7A65;width:44px;flex-shrink:0}
+.bar-bg{flex:1;height:10px;background:#F0EAE0;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;transition:width .5s ease}
+.bar-fill.growth{background:#8FBF7A}
+.bar-fill.mood{background:#F0A87A}
+.bar-val{font-size:12px;color:#A89880;width:38px;text-align:right}
+.stage-label{text-align:center;font-size:12px;color:#B0A08A;margin:4px 0 18px}
+.actions{display:flex;gap:10px;margin-top:20px}
+.btn{flex:1;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:500;cursor:pointer;transition:transform .15s,opacity .15s}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:#7FB068;color:#FFF;box-shadow:0 4px 12px rgba(127,176,104,.3)}
+.btn-secondary{background:#F5EEE2;color:#8A6A45}
+.sim{background:#FFF8EC;border-top:1px solid #F0E8DA;padding:14px 24px;display:flex;align-items:center;gap:12px}
+.sim label{font-size:12px;color:#A09078;flex-shrink:0}
+.sim input{flex:1;accent-color:#7FB068}
+.sim-val{font-size:13px;color:#B8863F;width:52px;text-align:right;font-weight:500}
+.tip{text-align:center;font-size:11px;color:#C0B09A;padding:12px 24px 20px}
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(62,54,46,.9);color:#FFF;padding:14px 24px;border-radius:12px;font-size:15px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="header">
+    <h1>治愈萌宠</h1>
+    <div class="steps-badge" id="stepsBadge">今日 0 步</div>
+  </div>
+  <div class="scene" id="scene">
+    <div class="sun"></div>
+    <div class="cloud" style="top:50px;left:40px;width:60px;height:20px"></div>
+    <div class="cloud" style="top:80px;left:120px;width:45px;height:16px"></div>
+    <div class="ground"></div>
+    <svg class="dog" id="dog" viewBox="0 0 140 140">
+      <g id="dogBody"></g>
+    </svg>
+    <div class="name-tag" id="nameTag">小柴 · 幼犬</div>
+    <div class="status" id="statusText">今天也要一起加油呀</div>
+    <div class="evolve-flash" id="flash"></div>
+  </div>
+  <div class="panel">
+    <div class="bar-row">
+      <div class="bar-label">成长</div>
+      <div class="bar-bg"><div class="bar-fill growth" id="growthBar" style="width:0%"></div></div>
+      <div class="bar-val" id="growthVal">0%</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">心情</div>
+      <div class="bar-bg"><div class="bar-fill mood" id="moodBar" style="width:70%"></div></div>
+      <div class="bar-val" id="moodVal">70</div>
+    </div>
+    <div class="stage-label" id="stageLabel">距离下一阶段还需 300 成长值</div>
+    <div class="actions">
+      <button class="btn btn-primary" id="feedBtn">喂食 +12</button>
+      <button class="btn btn-secondary" id="petBtn">抚摸 +3</button>
+    </div>
+  </div>
+  <div class="sim">
+    <label>模拟步数</label>
+    <input type="range" id="stepSlider" min="0" max="8000" step="200" value="0">
+    <div class="sim-val" id="simVal">0 步</div>
+  </div>
+  <div class="tip">拖动滑块模拟走路 · 步数会自动让小柴成长</div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const STAGES = ['幼犬', '成长期', '成年'];
+const THRESHOLDS = [0, 300, 1000];
+
+let state = {
+  growth: 0,
+  mood: 70,
+  stage: 0,
+  steps: 0,
+};
+
+const $ = id => document.getElementById(id);
+
+function calcStage(g){
+  if(g >= THRESHOLDS[2]) return 2;
+  if(g >= THRESHOLDS[1]) return 1;
+  return 0;
+}
+
+function stageProgress(g){
+  const s = calcStage(g);
+  if(s === 2) return 1;
+  const cur = THRESHOLDS[s], next = THRESHOLDS[s+1];
+  return Math.min(1,(g-cur)/(next-cur));
+}
+
+// 画像素风小柴犬：三个阶段形态不同
+function drawDog(stage, mood){
+  const c = {
+    body1:'#E8964A', body2:'#F5B870', belly:'#FFF3E2',
+    dark:'#6B4423', eye:'#3E2A1A', blush:'#F4A6A0'
+  };
+  const happy = mood >= 60;
+  let s = '';
+  // 成年阶段更大，加围巾
+  const scale = stage === 2 ? 1.12 : stage === 1 ? 1.04 : 1;
+  const cy = stage === 2 ? 8 : 12;
+
+  s += `<g transform="translate(70,72) scale(${scale}) translate(-70,-72)">`;
+  // 尾巴
+  if(stage >= 1){
+    s += `<path d="M105,95 Q125,80 118,65 Q115,78 100,88 Z" fill="${c.body1}" stroke="${c.dark}" stroke-width="1.5"/>`;
+  } else {
+    s += `<path d="M104,98 Q118,92 116,82 Q112,90 100,92 Z" fill="${c.body1}"/>`;
+  }
+  // 身体
+  s += `<ellipse cx="70" cy="100" rx="34" ry="${stage===0?26:30}" fill="${c.body1}" stroke="${c.dark}" stroke-width="1.5"/>`;
+  s += `<ellipse cx="70" cy="108" rx="20" ry="${stage===0?14:17}" fill="${c.belly}"/>`;
+  // 腿
+  s += `<ellipse cx="52" cy="124" rx="8" ry="9" fill="${c.body2}" stroke="${c.dark}" stroke-width="1"/>`;
+  s += `<ellipse cx="88" cy="124" rx="8" ry="9" fill="${c.body2}" stroke="${c.dark}" stroke-width="1"/>`;
+  // 头
+  const hy = 62 - cy*0.3;
+  s += `<circle cx="70" cy="${hy}" r="${stage===0?30:32}" fill="${c.body2}" stroke="${c.dark}" stroke-width="1.5"/>`;
+  // 耳朵
+  s += `<path d="M45,${hy-18} L38,${hy-40} L58,${hy-26} Z" fill="${c.body1}" stroke="${c.dark}" stroke-width="1.5"/>`;
+  s += `<path d="M95,${hy-18} L102,${hy-40} L82,${hy-26} Z" fill="${c.body1}" stroke="${c.dark}" stroke-width="1.5"/>`;
+  s += `<path d="M46,${hy-22} L43,${hy-34} L54,${hy-26} Z" fill="${c.blush}"/>`;
+  s += `<path d="M94,${hy-22} L97,${hy-34} L86,${hy-26} Z" fill="${c.blush}"/>`;
+  // 脸颊白
+  s += `<ellipse cx="70" cy="${hy+8}" rx="18" ry="14" fill="${c.belly}"/>`;
+  // 眼睛
+  if(happy){
+    s += `<path d="M56,${hy-2} Q60,${hy-7} 64,${hy-2}" stroke="${c.eye}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    s += `<path d="M76,${hy-2} Q80,${hy-7} 84,${hy-2}" stroke="${c.eye}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  } else {
+    s += `<circle cx="60" cy="${hy-2}" r="3" fill="${c.eye}"/><circle cx="80" cy="${hy-2}" r="3" fill="${c.eye}"/>`;
+  }
+  // 腮红
+  s += `<ellipse cx="50" cy="${hy+7}" rx="5" ry="3" fill="${c.blush}" opacity=".7"/>`;
+  s += `<ellipse cx="90" cy="${hy+7}" rx="5" ry="3" fill="${c.blush}" opacity=".7"/>`;
+  // 鼻子
+  s += `<ellipse cx="70" cy="${hy+6}" rx="4" ry="3" fill="${c.dark}"/>`;
+  // 嘴
+  if(happy){
+    s += `<path d="M64,${hy+11} Q70,${hy+17} 76,${hy+11}" stroke="${c.dark}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+  } else {
+    s += `<path d="M66,${hy+12} Q70,${hy+9} 74,${hy+12}" stroke="${c.dark}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+  }
+  // 成年加围巾
+  if(stage === 2){
+    s += `<path d="M48,${hy+25} Q70,${hy+32} 92,${hy+25} L90,${hy+33} Q70,${hy+40} 50,${hy+33} Z" fill="#D96B5A" stroke="#A84E42" stroke-width="1"/>`;
+    s += `<path d="M86,${hy+30} L96,${hy+48} L90,${hy+50} L80,${hy+34} Z" fill="#D96B5A" stroke="#A84E42" stroke-width="1"/>`;
+  }
+  s += '</g>';
+  $('dogBody').innerHTML = s;
+}
+
+function render(prevStage){
+  const st = calcStage(state.growth);
+  state.stage = st;
+  drawDog(st, state.mood);
+
+  $('stepsBadge').textContent = '今日 ' + state.steps.toLocaleString() + ' 步';
+  $('nameTag').textContent = '小柴 · ' + STAGES[st];
+  $('growthBar').style.width = (stageProgress(state.growth)*100) + '%';
+  $('growthVal').textContent = Math.round(stageProgress(state.growth)*100) + '%';
+  $('moodBar').style.width = state.mood + '%';
+  $('moodVal').textContent = Math.round(state.mood);
+
+  if(st === 2){
+    $('stageLabel').textContent = '已完全长大 · 最佳状态';
+  } else {
+    $('stageLabel').textContent = '距离「' + STAGES[st+1] + '」还需 ' +
+      Math.ceil(THRESHOLDS[st+1]-state.growth) + ' 成长值';
+  }
+
+  const moods = ['有点低落…','还不错','挺开心的','超开心！'];
+  const mi = state.mood>=85?3:state.mood>=60?2:state.mood>=30?1:0;
+  $('statusText').textContent = moods[mi];
+
+  // 进化特效
+  if(prevStage !== undefined && st > prevStage){
+    $('flash').classList.remove('on');
+    void $('flash').offsetWidth;
+    $('flash').classList.add('on');
+    showToast('🎉 小柴进化成「' + STAGES[st] + '」啦！');
+  }
+}
+
+let toastTimer;
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+function bounce(){
+  $('dog').classList.remove('happy');
+  void $('dog').offsetWidth;
+  $('dog').classList.add('happy');
+}
+
+$('feedBtn').onclick = () => {
+  const prev = state.stage;
+  state.growth += 12;
+  state.mood = Math.min(100, state.mood + 8);
+  render(prev);
+  bounce();
+  showToast('好香！小柴很满足');
+};
+
+$('petBtn').onclick = () => {
+  state.mood = Math.min(100, state.mood + 3);
+  render();
+  bounce();
+};
+
+$('dog').onclick = () => {
+  state.mood = Math.min(100, state.mood + 2);
+  render();
+  bounce();
+};
+
+$('stepSlider').oninput = e => {
+  const prev = state.stage;
+  const newSteps = parseInt(e.target.value);
+  const delta = Math.max(0, newSteps - state.steps);
+  state.steps = newSteps;
+  state.growth += delta * 0.05;
+  state.mood = Math.min(100, state.mood + Math.min(10, delta/500));
+  $('simVal').textContent = newSteps.toLocaleString() + ' 步';
+  render(prev);
+};
+
+render();
+</script>
+</body>
+</html>
